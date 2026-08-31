@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Codebeam — Beam files, peer to peer</title>
+<meta name="description" content="File, photo, video ya text seedha ek browser se doosre tak bhejo — peer-to-peer, koi server par store nahi hota. Ek one-time code, ek expiry timer.">
+<meta property="og:title" content="Codebeam — Beam files, peer to peer">
+<meta property="og:description" content="One-time code se file seedha browser-se-browser bhejo. Koi upload, koi storage nahi.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#14101F">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23FFB84D'/%3E%3Cpath d='M12 2L4 14h6l-1 8 9-13h-6l1-7z' fill='%2314101F'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#14101F;
+    --surface:#1E1830;
+    --surface-2:#28213E;
+    --border:rgba(255,255,255,0.09);
+    --text:#F3EEFB;
+    --text-dim:#B0A5CC;
+    --accent:#FFB84D;
+    --accent-dim:#3A2E1A;
+    --accent-2:#5EEAD4;
+    --accent-2-dim:#173832;
+    --danger:#FF7A7A;
+    --danger-dim:#3A1E1E;
+    --radius-lg:20px;
+    --radius-md:12px;
+    --radius-sm:8px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(600px 400px at 15% -10%, rgba(255,184,77,0.10), transparent 60%),
+      radial-gradient(700px 500px at 110% 10%, rgba(94,234,212,0.08), transparent 55%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.display{font-family:'Space Grotesk',sans-serif;}
+  button{font-family:inherit;}
+  ::selection{background:var(--accent);color:#14101F;}
+
+  .wrap{max-width:640px;margin:0 auto;padding:40px 20px 80px;}
+
+  header.top{display:flex;align-items:center;gap:12px;margin-bottom:6px;}
+  .beacon-mark{
+    width:34px;height:34px;border-radius:9px;
+    background:linear-gradient(145deg,var(--accent),#e0983a);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    box-shadow:0 0 0 1px rgba(255,255,255,0.08), 0 6px 14px -4px rgba(255,184,77,0.5);
+  }
+  .beacon-mark svg{width:18px;height:18px;}
+  header.top h1{font-size:22px;font-weight:600;margin:0;letter-spacing:-0.01em;}
+  .tagline{color:var(--text-dim);font-size:14.5px;margin:2px 0 22px;line-height:1.5;max-width:46ch;}
+
+  .howit{display:flex;gap:8px;margin-bottom:26px;}
+  .hstep{
+    flex:1;display:flex;align-items:center;gap:8px;background:var(--surface);
+    border:1px solid var(--border);border-radius:11px;padding:10px 12px;font-size:12.5px;color:var(--text-dim);
+  }
+  .hn{
+    width:20px;height:20px;border-radius:50%;background:var(--surface-2);color:var(--accent);
+    font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:11.5px;
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  @media (max-width:520px){ .howit{flex-direction:column;} }
+
+  .tabs{display:flex;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:5px;margin-bottom:22px;}
+  .tab-btn{
+    flex:1;padding:11px 0;border:none;background:transparent;color:var(--text-dim);
+    font-size:14.5px;font-weight:600;border-radius:10px;cursor:pointer;transition:background .15s, color .15s;
+  }
+  .tab-btn.active{background:var(--surface-2);color:var(--text);}
+  .tab-btn:not(.active):hover{color:var(--text);}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:26px;}
+  .panel{display:none;}
+  .panel.active{display:block;}
+
+  /* ---- dropzone ---- */
+  .dropzone{
+    border:1.5px dashed rgba(255,255,255,0.16);
+    border-radius:var(--radius-md);
+    padding:30px 20px;text-align:center;cursor:pointer;
+    transition:border-color .15s, background .15s;
+  }
+  .dropzone:hover, .dropzone.drag{border-color:var(--accent);background:rgba(255,184,77,0.05);}
+  .dropzone svg{width:26px;height:26px;color:var(--text-dim);margin-bottom:10px;}
+  .dropzone p{margin:0;font-size:14px;color:var(--text-dim);}
+  .dropzone p b{color:var(--text);font-weight:600;}
+  .dropzone input{display:none;}
+
+  .file-list{list-style:none;margin:14px 0 0;padding:0;display:flex;flex-direction:column;gap:8px;}
+  .file-row{
+    display:flex;align-items:center;gap:10px;
+    background:var(--surface-2);border:1px solid var(--border);
+    border-radius:var(--radius-sm);padding:9px 12px;font-size:13.5px;
+  }
+  .file-row .fname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .file-row .fsize{color:var(--text-dim);font-size:12.5px;flex-shrink:0;}
+  .file-row .frm{background:none;border:none;color:var(--text-dim);cursor:pointer;padding:2px 4px;font-size:16px;line-height:1;flex-shrink:0;}
+  .file-row .frm:hover{color:var(--danger);}
+
+  textarea#sendMsg{
+    width:100%;margin-top:14px;background:var(--surface-2);border:1px solid var(--border);
+    border-radius:var(--radius-sm);color:var(--text);font-family:inherit;font-size:13.5px;
+    padding:10px 12px;resize:vertical;min-height:44px;
+  }
+  textarea#sendMsg::placeholder{color:var(--text-dim);}
+
+  .row{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:16px;}
+  .expiry-select{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--text-dim);}
+  select#expiryMins{
+    background:var(--surface-2);color:var(--text);border:1px solid var(--border);
+    border-radius:8px;padding:7px 9px;font-size:13.5px;font-family:inherit;
+  }
+
+  .btn-primary{
+    width:100%;margin-top:18px;padding:13px 0;border:none;border-radius:var(--radius-sm);
+    background:var(--accent);color:#241A08;font-weight:700;font-size:15px;cursor:pointer;
+    transition:filter .15s, transform .05s;
+  }
+  .btn-primary:hover{filter:brightness(1.07);}
+  .btn-primary:active{transform:scale(0.99);}
+  .btn-primary:disabled{opacity:0.45;cursor:not-allowed;filter:none;}
+
+  .btn-secondary{
+    padding:11px 16px;border-radius:var(--radius-sm);border:1px solid var(--border);
+    background:var(--surface-2);color:var(--text);font-weight:600;font-size:13.5px;cursor:pointer;
+  }
+  .btn-secondary:hover{border-color:rgba(255,255,255,0.25);}
+
+  /* ---- code / beacon display ---- */
+  .beacon-stage{display:flex;flex-direction:column;align-items:center;text-align:center;padding:6px 0 4px;}
+  .ring{
+    position:relative;width:150px;height:150px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;margin-bottom:18px;
+  }
+  .ring svg{position:absolute;top:0;left:0;width:150px;height:150px;transform:rotate(-90deg);}
+  .ring .track{fill:none;stroke:var(--border);stroke-width:5;}
+  .ring .prog{fill:none;stroke:var(--accent);stroke-width:5;stroke-linecap:round;transition:stroke-dashoffset 1s linear;}
+  .ring.connected .prog{stroke:var(--accent-2);}
+  .ring .inner{position:relative;display:flex;flex-direction:column;align-items:center;}
+  .code-digits{font-family:'Space Grotesk',sans-serif;font-size:27px;font-weight:700;letter-spacing:0.04em;}
+  .code-timer{font-size:11.5px;color:var(--text-dim);margin-top:3px;}
+
+  .status-line{font-size:13.5px;color:var(--text-dim);margin-bottom:16px;min-height:18px;}
+  .status-line.ok{color:var(--accent-2);}
+  .status-line.err{color:var(--danger);}
+
+  .copy-row{display:flex;gap:8px;width:100%;margin-bottom:6px;}
+  .copy-row button{flex:1;}
+
+  .qr-toggle{
+    background:none;border:none;color:var(--accent-2);font-size:12.5px;font-weight:600;
+    cursor:pointer;margin-bottom:14px;padding:2px 0;
+  }
+  .qr-toggle:hover{text-decoration:underline;}
+  .qr-box{display:flex;flex-direction:column;align-items:center;margin-bottom:16px;}
+  .qr-box img{border-radius:10px;background:#fff;padding:8px;}
+  .qr-box p{font-size:11.5px;color:var(--text-dim);margin:8px 0 0;max-width:220px;text-align:center;line-height:1.4;}
+
+  .xfer-list{width:100%;display:flex;flex-direction:column;gap:10px;margin-top:18px;text-align:left;}
+  .xfer-item{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px 13px;}
+  .xfer-item .xhead{display:flex;justify-content:space-between;font-size:13px;margin-bottom:7px;gap:10px;}
+  .xfer-item .xhead .xn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .xfer-item .xhead .xp{color:var(--text-dim);flex-shrink:0;}
+  .bar{height:6px;border-radius:4px;background:rgba(255,255,255,0.08);overflow:hidden;}
+  .bar i{display:block;height:100%;width:0%;background:var(--accent-2);border-radius:4px;transition:width .2s;}
+  .xfer-item.done .bar i{background:#7CF29C;}
+  .xfer-item.done .xp::after{content:" ✓";color:#7CF29C;}
+  .xfer-item.error{border-color:rgba(255,122,122,0.4);}
+  .xfer-item.error .bar i{background:var(--danger);width:100% !important;}
+  .xfer-item.error .xp{color:var(--danger);}
+  a.redl{
+    display:none;margin-top:8px;font-size:12px;color:var(--accent-2);text-decoration:none;font-weight:600;
+  }
+  a.redl:hover{text-decoration:underline;}
+
+  .msg-box{
+    margin-top:16px;background:var(--accent-2-dim);border:1px solid rgba(94,234,212,0.25);
+    border-radius:var(--radius-sm);padding:12px 14px;font-size:13.5px;color:var(--text);
+    text-align:left;white-space:pre-wrap;word-break:break-word;
+  }
+  .msg-box b{display:block;font-size:11px;text-transform:none;color:var(--accent-2);margin-bottom:4px;font-weight:700;}
+
+  /* ---- receive panel ---- */
+  .code-input-row{display:flex;gap:10px;}
+  input#codeInput{
+    flex:1;background:var(--surface-2);border:1px solid var(--border);color:var(--text);
+    border-radius:var(--radius-sm);padding:13px 14px;font-size:20px;font-family:'Space Grotesk',sans-serif;
+    letter-spacing:0.12em;text-align:center;font-weight:600;
+  }
+  input#codeInput::placeholder{color:rgba(176,165,204,0.4);letter-spacing:0.08em;}
+  input#codeInput:focus{outline:none;border-color:var(--accent-2);}
+
+  .hint{font-size:12.5px;color:var(--text-dim);margin-top:10px;line-height:1.5;}
+
+  .note{
+    display:flex;gap:10px;background:var(--surface-2);border:1px solid var(--border);
+    border-radius:var(--radius-md);padding:13px 14px;margin-top:22px;font-size:12.5px;color:var(--text-dim);line-height:1.55;
+  }
+  .note svg{width:16px;height:16px;flex-shrink:0;margin-top:1px;color:var(--accent);}
+  .note.warn{background:var(--danger-dim);border-color:rgba(255,122,122,0.3);}
+  .note.warn svg{color:var(--danger);}
+  .note.ok{background:var(--accent-2-dim);border-color:rgba(94,234,212,0.3);}
+  .note.ok svg{color:var(--accent-2);}
+
+  footer{text-align:center;color:var(--text-dim);font-size:12px;margin-top:26px;}
+
+  @media (max-width:420px){
+    .wrap{padding:26px 14px 60px;}
+    .ring, .ring svg{width:130px;height:130px;}
+    .code-digits{font-size:23px;}
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important;animation:none !important;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="beacon-mark">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2L4 14h6l-1 8 9-13h-6l1-7z" fill="#14101F"/>
+      </svg>
+    </div>
+    <h1>Codebeam</h1>
+  </header>
+  <p class="tagline">File, photo, video ya text kisi bhi doosre browser tak seedha bhejo — kisi server par store kiye bina. Ek one-time code banega, expiry ke andar dusra device wo code daalke seedha download kar lega.</p>
+
+  <div class="howit">
+    <div class="hstep"><span class="hn">1</span><span>File chuno, code milega</span></div>
+    <div class="hstep"><span class="hn">2</span><span>Doosre ko code bhejo</span></div>
+    <div class="hstep"><span class="hn">3</span><span>Wo daalte hi transfer</span></div>
+  </div>
+
+  <div class="note" id="libStatus" style="margin-top:0;margin-bottom:22px;display:flex;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+    <span id="libStatusText">Connection library load ho rahi hai…</span>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="send">Send karo</button>
+    <button class="tab-btn" data-tab="receive">Receive karo</button>
+  </div>
+
+  <!-- ============ SEND PANEL ============ -->
+  <div class="card panel active" id="panel-send">
+
+    <div id="sendSetup">
+      <div class="dropzone" id="dropzone">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+        <p><b>File chuno</b> ya yahan drag-drop karo</p>
+        <input type="file" id="fileInput" multiple>
+      </div>
+      <ul class="file-list" id="fileList"></ul>
+
+      <textarea id="sendMsg" placeholder="Chahe to ek text message bhi saath bhej do (optional)"></textarea>
+
+      <div class="row">
+        <div class="expiry-select">
+          <span>Code expire ho:</span>
+          <select id="expiryMins">
+            <option value="2">2 min me</option>
+            <option value="5" selected>5 min me</option>
+            <option value="10">10 min me</option>
+            <option value="30">30 min me</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="btn-primary" id="startSendBtn" disabled>Code banao aur bhejna shuru karo</button>
+    </div>
+
+    <div id="sendActive" style="display:none;">
+      <div class="beacon-stage">
+        <div class="ring" id="sendRing">
+          <svg viewBox="0 0 150 150">
+            <circle class="track" cx="75" cy="75" r="66"></circle>
+            <circle class="prog" id="sendProgRing" cx="75" cy="75" r="66" stroke-dasharray="414.7" stroke-dashoffset="0"></circle>
+          </svg>
+          <div class="inner">
+            <div class="code-digits" id="sendCode">------</div>
+            <div class="code-timer" id="sendTimerText">expiring in 5:00</div>
+          </div>
+        </div>
+
+        <div class="status-line" id="sendStatus">Peer se jud rahe hain…</div>
+
+        <button class="qr-toggle" id="qrToggleBtn" type="button">QR code dikhao</button>
+        <div class="qr-box" id="qrBox" style="display:none;">
+          <img id="qrImg" alt="Scan karke code enter karo" width="150" height="150">
+          <p>Doosre device se scan karo — code apne aap bhar jaayega</p>
+        </div>
+
+        <div class="copy-row">
+          <button class="btn-secondary" id="copyCodeBtn">Code copy karo</button>
+          <button class="btn-secondary" id="cancelSendBtn">Cancel</button>
+        </div>
+
+        <div class="xfer-list" id="sendXferList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ RECEIVE PANEL ============ -->
+  <div class="card panel" id="panel-receive">
+    <div id="recvSetup">
+      <div class="code-input-row">
+        <input type="text" id="codeInput" placeholder="000000" maxlength="6" inputmode="numeric">
+        <button class="btn-primary" id="connectBtn" style="width:auto;margin-top:0;padding:0 20px;" disabled>Connect</button>
+      </div>
+      <p class="hint">Bhejne wale ki screen par jo 6-digit code dikh raha hai wo yahan daalo. Dono devices ki screen खुली honi chahiye jab tak transfer poora na ho jaaye.</p>
+    </div>
+
+    <div id="recvActive" style="display:none;">
+      <div class="status-line" id="recvStatus">Connect ho raha hai…</div>
+      <div class="xfer-list" id="recvXferList"></div>
+      <div class="msg-box" id="recvMsgBox" style="display:none;"><b>MESSAGE</b><span id="recvMsgText"></span></div>
+      <button class="btn-secondary" id="recvResetBtn" style="width:100%;margin-top:16px;">Dusra code try karo</button>
+    </div>
+  </div>
+
+  <div class="note">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+    <span>Transfer seedha browser-se-browser (peer-to-peer) hota hai — file kabhi kisi server par save nahi hoti. Isliye sender aur receiver dono ka tab transfer poora hone tak khula rehna zaroori hai. Bahut strict office/college Wi-Fi par kabhi-kabhi direct connection block ho sakta hai — us case me mobile data ya doosre network se try karein. QR code ek free public service (qrserver.com) se banta hai — sirf code/link usme encode hota hai, file kabhi uske through nahi jaati.</span>
+  </div>
+
+  <footer>Ek baar tab band ya connection cancel karne par code turant bekaar ho jaata hai.</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============================================================
+     PEERJS LIBRARY LOADER — tries several CDNs in turn so a single
+     blocked/slow CDN can't leave the whole app stuck on "Peer is
+     not defined". Buttons stay disabled until this resolves.
+  ============================================================ */
+  const PEERJS_CDNS = [
+    "https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js",
+    "https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"
+  ];
+  window.__peerJsReady = false;
+  window.__sendFilesCount = 0;
+  const libStatusEl = document.getElementById("libStatus");
+  const libStatusText = document.getElementById("libStatusText");
+
+  function loadPeerJs(i){
+    if(i >= PEERJS_CDNS.length){
+      libStatusEl.className = "note warn";
+      libStatusText.textContent = "Connection library load nahi ho paayi — internet check karo ya ad-blocker/VPN band karke page reload karo.";
+      setButtonsEnabled(false);
+      return;
+    }
+    const s = document.createElement("script");
+    s.src = PEERJS_CDNS[i];
+    s.onload = ()=>{
+      if(typeof Peer === "undefined"){ loadPeerJs(i+1); return; }
+      window.__peerJsReady = true;
+      libStatusEl.className = "note ok";
+      libStatusText.textContent = "Taiyaar hai — ab file bhej ya receive kar sakte ho.";
+      setButtonsEnabled(true);
+      setTimeout(()=>{ libStatusEl.style.display = "none"; }, 1800);
+    };
+    s.onerror = ()=> loadPeerJs(i+1);
+    document.head.appendChild(s);
+  }
+  function setButtonsEnabled(on){
+    const startBtn = document.getElementById("startSendBtn");
+    const connectBtn = document.getElementById("connectBtn");
+    if(startBtn) startBtn.disabled = !on || (window.__sendFilesCount === 0);
+    if(connectBtn) connectBtn.disabled = !on;
+  }
+  loadPeerJs(0);
+
+  function requirePeerJsOrWarn(statusEl){
+    if(window.__peerJsReady && typeof Peer !== "undefined") return true;
+    statusEl.className = "status-line err";
+    statusEl.textContent = "Connection library abhi taiyaar nahi hai. Thoda ruko ya page reload karo.";
+    return false;
+  }
+
+  /* ============================================================
+     STATE
+  ============================================================ */
+  const CHUNK_SIZE = 16 * 1024;      // 16KB per chunk (safe across all browsers incl. older Safari)
+  const BUFFER_HIGH = 4 * 1024 * 1024; // pause sending above 4MB buffered
+  let recvBlobUrls = {}; // index -> {url, name} kept alive for "download again"
+
+  let sendPeer = null, sendConn = null, sendFiles = [], sendMsgText = "";
+  let expiryTimerId = null, expiryDeadline = null;
+  let recvPeer = null, recvConn = null;
+  let recvIncoming = null; // {meta, chunks:[], received}
+
+  /* ============================================================
+     TAB SWITCHING
+  ============================================================ */
+  document.querySelectorAll(".tab-btn").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+      document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));
+      btn.classList.add("active");
+      document.getElementById("panel-"+btn.dataset.tab).classList.add("active");
+    });
+  });
+
+  /* ============================================================
+     HELPERS
+  ============================================================ */
+  function fmtSize(bytes){
+    if(bytes < 1024) return bytes+" B";
+    if(bytes < 1024*1024) return (bytes/1024).toFixed(1)+" KB";
+    if(bytes < 1024*1024*1024) return (bytes/(1024*1024)).toFixed(1)+" MB";
+    return (bytes/(1024*1024*1024)).toFixed(2)+" GB";
+  }
+  function randomCode(){
+    return String(Math.floor(100000 + Math.random()*900000));
+  }
+  function fmtMMSS(ms){
+    if(ms < 0) ms = 0;
+    const s = Math.floor(ms/1000);
+    const m = Math.floor(s/60);
+    const r = s%60;
+    return m+":"+String(r).padStart(2,"0");
+  }
+
+  /* ============================================================
+     SEND — file picking
+  ============================================================ */
+  const dropzone = document.getElementById("dropzone");
+  const fileInput = document.getElementById("fileInput");
+  const fileListEl = document.getElementById("fileList");
+  const startSendBtn = document.getElementById("startSendBtn");
+
+  dropzone.addEventListener("click", ()=>fileInput.click());
+  dropzone.addEventListener("dragover", e=>{e.preventDefault(); dropzone.classList.add("drag");});
+  dropzone.addEventListener("dragleave", ()=>dropzone.classList.remove("drag"));
+  dropzone.addEventListener("drop", e=>{
+    e.preventDefault(); dropzone.classList.remove("drag");
+    addFiles(e.dataTransfer.files);
+  });
+  fileInput.addEventListener("change", ()=>{addFiles(fileInput.files); fileInput.value="";});
+
+  function addFiles(fileListArg){
+    for(const f of fileListArg) sendFiles.push(f);
+    renderFileList();
+  }
+  function renderFileList(){
+    fileListEl.innerHTML = "";
+    sendFiles.forEach((f, idx)=>{
+      const li = document.createElement("li");
+      li.className = "file-row";
+      li.innerHTML = `<span class="fname">${escapeHtml(f.name)}</span><span class="fsize">${fmtSize(f.size)}</span><button class="frm" data-idx="${idx}" title="Hatao">✕</button>`;
+      fileListEl.appendChild(li);
+    });
+    fileListEl.querySelectorAll(".frm").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        sendFiles.splice(parseInt(btn.dataset.idx,10),1);
+        renderFileList();
+      });
+    });
+    startSendBtn.disabled = sendFiles.length === 0 || !window.__peerJsReady;
+    window.__sendFilesCount = sendFiles.length;
+  }
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  }
+
+  /* ============================================================
+     SEND — start sharing (create peer with code as ID)
+  ============================================================ */
+  const sendSetup = document.getElementById("sendSetup");
+  const sendActive = document.getElementById("sendActive");
+  const sendCodeEl = document.getElementById("sendCode");
+  const sendTimerText = document.getElementById("sendTimerText");
+  const sendStatus = document.getElementById("sendStatus");
+  const sendRing = document.getElementById("sendRing");
+  const sendProgRing = document.getElementById("sendProgRing");
+  const RING_CIRC = 2*Math.PI*66;
+
+  document.getElementById("startSendBtn").addEventListener("click", startSending);
+  document.getElementById("cancelSendBtn").addEventListener("click", resetSend);
+  document.getElementById("copyCodeBtn").addEventListener("click", ()=>{
+    const code = sendCodeEl.textContent.trim();
+    if(!/^\d{6}$/.test(code)) return;
+    navigator.clipboard?.writeText(code).then(()=>{
+      const btn = document.getElementById("copyCodeBtn");
+      const old = btn.textContent;
+      btn.textContent = "Copied!";
+      setTimeout(()=>btn.textContent = old, 1200);
+    }).catch(()=>{});
+  });
+
+  const qrToggleBtn = document.getElementById("qrToggleBtn");
+  const qrBox = document.getElementById("qrBox");
+  qrToggleBtn.addEventListener("click", ()=>{
+    const showing = qrBox.style.display !== "none";
+    qrBox.style.display = showing ? "none" : "flex";
+    qrToggleBtn.textContent = showing ? "QR code dikhao" : "QR code chhupao";
+  });
+
+  function updateQr(code){
+    // On a hosted (http/https) page, the QR encodes a link with ?code=
+    // so the receiving phone's camera app can jump straight to the
+    // receive tab, pre-filled. Opened as a local file:// page there is
+    // no shareable URL, so it just encodes the raw code as a fallback.
+    const isHosted = /^https?:$/.test(location.protocol);
+    const payload = isHosted
+      ? location.origin + location.pathname + "?code=" + code
+      : code;
+    document.getElementById("qrImg").src =
+      "https://api.qrserver.com/v1/create-qr-code/?size=150x150&margin=4&data=" + encodeURIComponent(payload);
+  }
+
+  // If this page was opened via a ?code=XXXXXX link (e.g. from a scanned
+  // QR), jump straight to the Receive tab with the code pre-filled.
+  (function checkIncomingCodeLink(){
+    const params = new URLSearchParams(location.search);
+    const c = params.get("code");
+    if(c && /^\d{6}$/.test(c)){
+      document.querySelector('.tab-btn[data-tab="receive"]').click();
+      document.getElementById("codeInput").value = c;
+    }
+  })();
+
+  function startSending(){
+    if(!requirePeerJsOrWarn(sendStatus)) return;
+    sendMsgText = document.getElementById("sendMsg").value.trim();
+    sendSetup.style.display = "none";
+    sendActive.style.display = "block";
+    sendStatus.className = "status-line";
+    sendStatus.textContent = "Code taiyaar kiya jaa raha hai…";
+    document.getElementById("sendXferList").innerHTML = "";
+    createSendPeer(0);
+  }
+
+  function createSendPeer(attempt){
+    if(attempt > 6){
+      sendStatus.className = "status-line err";
+      sendStatus.textContent = "Signal server se connect nahi ho paaya. Dubara try karein.";
+      return;
+    }
+    const code = randomCode();
+    try{ if(sendPeer) sendPeer.destroy(); }catch(e){}
+    sendPeer = new Peer(code, { debug: 0 });
+
+    sendPeer.on("open", id=>{
+      sendCodeEl.textContent = id;
+      sendStatus.textContent = "Receiver ka intezaar… code share karo";
+      const mins = parseInt(document.getElementById("expiryMins").value, 10);
+      startExpiryTimer(mins*60*1000);
+      updateQr(id);
+    });
+
+    sendPeer.on("connection", conn=>{
+      if(sendConn){ conn.close(); return; } // only one receiver at a time
+      sendConn = conn;
+      clearExpiryTimer();
+      sendRing.classList.add("connected");
+      sendTimerText.textContent = "connected";
+      sendProgRing.style.strokeDashoffset = 0;
+      sendConn.on("open", ()=>{
+        sendStatus.className = "status-line ok";
+        sendStatus.textContent = "Connected — bhejna shuru…";
+        beginFileTransfer();
+      });
+      sendConn.on("close", ()=>{
+        if(!allDone){
+          sendStatus.className = "status-line err";
+          sendStatus.textContent = "Receiver disconnect ho gaya.";
+        }
+      });
+      sendConn.on("error", ()=>{
+        sendStatus.className = "status-line err";
+        sendStatus.textContent = "Connection me error aayi.";
+      });
+    });
+
+    sendPeer.on("error", err=>{
+      if(err.type === "unavailable-id"){
+        createSendPeer(attempt+1);
+      } else if (err.type === "network" || err.type === "server-error" || err.type === "socket-error" || err.type === "socket-closed"){
+        sendStatus.className = "status-line err";
+        sendStatus.textContent = "Network/signal server problem — dubara try karo.";
+      } else if (!sendConn){
+        sendStatus.className = "status-line err";
+        sendStatus.textContent = "Kuch galat ho gaya: " + err.type;
+      }
+    });
+  }
+
+  function startExpiryTimer(totalMs){
+    expiryDeadline = Date.now() + totalMs;
+    updateExpiryUI();
+    expiryTimerId = setInterval(()=>{
+      const left = expiryDeadline - Date.now();
+      if(left <= 0){
+        clearExpiryTimer();
+        sendTimerText.textContent = "expired";
+        sendStatus.className = "status-line err";
+        sendStatus.textContent = "Code expire ho gaya. Naya code banao.";
+        sendProgRing.style.strokeDashoffset = RING_CIRC;
+        try{ sendPeer && sendPeer.destroy(); }catch(e){}
+        return;
+      }
+      updateExpiryUI(left);
+    }, 250);
+  }
+  function updateExpiryUI(leftArg){
+    const totalMs = parseInt(document.getElementById("expiryMins").value,10)*60*1000;
+    const left = leftArg===undefined ? expiryDeadline - Date.now() : leftArg;
+    sendTimerText.textContent = "expiring in " + fmtMMSS(left);
+    const frac = Math.max(0, left/totalMs);
+    sendProgRing.style.strokeDashoffset = String(RING_CIRC * (1-frac));
+  }
+  function clearExpiryTimer(){
+    if(expiryTimerId){ clearInterval(expiryTimerId); expiryTimerId=null; }
+  }
+
+  let allDone = false;
+
+  function resetSend(){
+    clearExpiryTimer();
+    allDone = false;
+    try{ sendConn && sendConn.close(); }catch(e){}
+    try{ sendPeer && sendPeer.destroy(); }catch(e){}
+    sendPeer = null; sendConn = null;
+    sendFiles = [];
+    renderFileList();
+    document.getElementById("sendMsg").value = "";
+    sendSetup.style.display = "block";
+    sendActive.style.display = "none";
+    sendRing.classList.remove("connected");
+    sendProgRing.style.strokeDashoffset = "0";
+    qrBox.style.display = "none";
+    qrToggleBtn.textContent = "QR code dikhao";
+  }
+
+  /* ============================================================
+     SEND — chunked file transfer with backpressure + progress
+  ============================================================ */
+  function beginFileTransfer(){
+    const xferList = document.getElementById("sendXferList");
+    xferList.innerHTML = "";
+    sendFiles.forEach((f, idx)=>{
+      const item = document.createElement("div");
+      item.className = "xfer-item";
+      item.id = "sx-"+idx;
+      item.innerHTML = `<div class="xhead"><span class="xn">${escapeHtml(f.name)}</span><span class="xp" id="sx-pct-${idx}">0%</span></div><div class="bar"><i id="sx-bar-${idx}"></i></div>`;
+      xferList.appendChild(item);
+    });
+
+    sendConn.on("data", data=>{
+      if(typeof data !== "string") return;
+      let msg;
+      try{ msg = JSON.parse(data); }catch(e){ return; }
+      if(msg.type === "ack-file"){
+        const item = document.getElementById("sx-"+msg.index);
+        if(item){
+          const pctEl = document.getElementById("sx-pct-"+msg.index);
+          if(pctEl) pctEl.textContent = "✓ confirmed";
+        }
+      } else if(msg.type === "ack-error"){
+        const item = document.getElementById("sx-"+msg.index);
+        if(item){
+          item.classList.add("error");
+          const pctEl = document.getElementById("sx-pct-"+msg.index);
+          if(pctEl) pctEl.textContent = "mismatch!";
+        }
+        sendStatus.className = "status-line err";
+        sendStatus.textContent = "Ek file receiver tak poori nahi pahunchi. Dubara try karo.";
+      }
+    });
+
+    sendFilesSequentially(0);
+  }
+
+  function sendJSON(obj){
+    sendConn.send(JSON.stringify(obj));
+  }
+
+  function sendFilesSequentially(idx){
+    if(idx === 0 && sendMsgText){
+      sendJSON({ type:"message", text: sendMsgText });
+    }
+    if(idx >= sendFiles.length){
+      sendJSON({ type:"all-done" });
+      allDone = true;
+      sendStatus.className = "status-line ok";
+      sendStatus.textContent = "Sab files bhej di gayi ✓";
+      return;
+    }
+    const file = sendFiles[idx];
+    sendJSON({ type:"meta", index: idx, name: file.name, size: file.size, mime: file.type || "application/octet-stream" });
+    sendOneFile(file, idx, ()=>{
+      document.getElementById("sx-"+idx).classList.add("done");
+      sendFilesSequentially(idx+1);
+    });
+  }
+
+  function sendOneFile(file, idx, onDone){
+    let offset = 0;
+    const dc = sendConn.dataChannel;
+    const pctEl = document.getElementById("sx-pct-"+idx);
+    const barEl = document.getElementById("sx-bar-"+idx);
+
+    function sendNextChunk(){
+      if(!sendConn || !sendConn.open){
+        sendStatus.className = "status-line err"; sendStatus.textContent = "Connection toot gaya."; return;
+      }
+      if(dc && dc.bufferedAmount > BUFFER_HIGH){
+        setTimeout(sendNextChunk, 60);
+        return;
+      }
+      if(offset >= file.size){
+        sendJSON({ type:"file-done", index: idx, size: file.size });
+        pctEl.textContent = "verifying…";
+        barEl.style.width = "100%";
+        onDone();
+        return;
+      }
+      const slice = file.slice(offset, offset+CHUNK_SIZE);
+      const reader = new FileReader();
+      reader.onerror = ()=>{
+        sendStatus.className = "status-line err";
+        sendStatus.textContent = "File read karte waqt error aayi: " + file.name;
+      };
+      reader.onload = ()=>{
+        try{
+          sendConn.send(reader.result); // raw ArrayBuffer chunk (serialization: "none")
+        }catch(e){
+          setTimeout(sendNextChunk, 150);
+          return;
+        }
+        offset += slice.size;
+        const pct = Math.min(100, Math.round((offset/file.size)*100));
+        pctEl.textContent = pct+"%";
+        barEl.style.width = pct+"%";
+        sendNextChunk();
+      };
+      reader.readAsArrayBuffer(slice);
+    }
+    sendNextChunk();
+  }
+
+  /* ============================================================
+     RECEIVE — connect using code
+  ============================================================ */
+  const codeInput = document.getElementById("codeInput");
+  const connectBtn = document.getElementById("connectBtn");
+  const recvSetup = document.getElementById("recvSetup");
+  const recvActive = document.getElementById("recvActive");
+  const recvStatus = document.getElementById("recvStatus");
+  const recvXferList = document.getElementById("recvXferList");
+  const recvMsgBox = document.getElementById("recvMsgBox");
+  const recvMsgText = document.getElementById("recvMsgText");
+
+  codeInput.addEventListener("input", ()=>{
+    codeInput.value = codeInput.value.replace(/\D/g,"").slice(0,6);
+  });
+  codeInput.addEventListener("keydown", e=>{ if(e.key==="Enter") connectBtn.click(); });
+  connectBtn.addEventListener("click", ()=>{
+    if(!window.__peerJsReady || typeof Peer === "undefined"){
+      recvStatus.className = "status-line err";
+      recvStatus.textContent = "Connection library abhi taiyaar nahi hai. Thoda ruko ya page reload karo.";
+      return;
+    }
+    const code = codeInput.value.trim();
+    if(!/^\d{6}$/.test(code)){
+      codeInput.focus();
+      return;
+    }
+    startReceiving(code);
+  });
+  document.getElementById("recvResetBtn").addEventListener("click", resetReceive);
+
+  function startReceiving(code){
+    recvSetup.style.display = "none";
+    recvActive.style.display = "block";
+    recvStatus.className = "status-line";
+    recvStatus.textContent = "Connect ho raha hai…";
+    recvXferList.innerHTML = "";
+    recvMsgBox.style.display = "none";
+
+    try{ if(recvPeer) recvPeer.destroy(); }catch(e){}
+    recvPeer = new Peer(undefined, { debug: 0 });
+
+    recvPeer.on("open", ()=>{
+      // serialization "none" = raw ArrayBuffers pass through untouched (no BinaryPack
+      // re-typing, which was silently turning chunks into unrecognised objects).
+      recvConn = recvPeer.connect(code, { reliable: true, serialization: "none" });
+      wireReceiveConn();
+    });
+    recvPeer.on("error", err=>{
+      recvStatus.className = "status-line err";
+      if(err.type === "peer-unavailable"){
+        recvStatus.textContent = "Ye code exist nahi karta ya expire ho gaya.";
+      } else {
+        recvStatus.textContent = "Connection error: " + err.type;
+      }
+    });
+  }
+
+  function wireReceiveConn(){
+    let connectTimeout = setTimeout(()=>{
+      if(recvStatus.textContent.indexOf("Connect ho") === 0){
+        recvStatus.className = "status-line err";
+        recvStatus.textContent = "Connect nahi ho paaya. Code check karke dubara try karo.";
+      }
+    }, 12000);
+
+    recvConn.on("open", ()=>{
+      clearTimeout(connectTimeout);
+      recvStatus.className = "status-line ok";
+      recvStatus.textContent = "Connected — file(s) ka intezaar…";
+    });
+
+    recvConn.on("data", data=>{
+      // Binary chunk: covers ArrayBuffer and any typed-array/DataView the browser
+      // or PeerJS's internal chunker might hand back for a raw binary message.
+      if(data instanceof ArrayBuffer || ArrayBuffer.isView(data)){
+        handleIncomingChunk(data);
+        return;
+      }
+      // Some engines may hand back a Blob for binary messages — support it too.
+      if(typeof Blob !== "undefined" && data instanceof Blob){
+        data.arrayBuffer().then(handleIncomingChunk);
+        return;
+      }
+      if(typeof data !== "string") return;
+      let msg;
+      try{ msg = JSON.parse(data); }catch(e){ return; }
+      switch(msg.type){
+        case "meta":
+          recvIncoming = { index:msg.index, name:msg.name, size:msg.size, mime:msg.mime, chunks:[], received:0 };
+          ensureXferRow(msg.index, msg.name);
+          break;
+        case "file-done":
+          finishIncomingFile(msg);
+          break;
+        case "message":
+          recvMsgText.textContent = msg.text;
+          recvMsgBox.style.display = "block";
+          break;
+        case "all-done":
+          recvStatus.className = "status-line ok";
+          recvStatus.textContent = "Sab files receive ho gayi ✓";
+          break;
+      }
+    });
+
+    recvConn.on("close", ()=>{
+      clearTimeout(connectTimeout);
+    });
+    recvConn.on("error", ()=>{
+      recvStatus.className = "status-line err";
+      recvStatus.textContent = "Connection me error aayi.";
+    });
+  }
+
+  function ensureXferRow(idx, name){
+    if(document.getElementById("rx-"+idx)) return;
+    const item = document.createElement("div");
+    item.className = "xfer-item";
+    item.id = "rx-"+idx;
+    item.innerHTML = `<div class="xhead"><span class="xn">${escapeHtml(name)}</span><span class="xp" id="rx-pct-${idx}">0%</span></div><div class="bar"><i id="rx-bar-${idx}"></i></div><a class="redl" id="rx-link-${idx}" style="display:none;">Dubara download karo</a>`;
+    recvXferList.appendChild(item);
+  }
+
+  function handleIncomingChunk(buf){
+    if(!recvIncoming) return; // stray chunk with no active meta — ignore safely
+    recvIncoming.chunks.push(buf);
+    recvIncoming.received += buf.byteLength;
+    const pct = recvIncoming.size ? Math.min(100, Math.round((recvIncoming.received/recvIncoming.size)*100)) : 0;
+    const pctEl = document.getElementById("rx-pct-"+recvIncoming.index);
+    const barEl = document.getElementById("rx-bar-"+recvIncoming.index);
+    if(pctEl) pctEl.textContent = pct+"%";
+    if(barEl) barEl.style.width = pct+"%";
+  }
+
+  function sendRecvJSON(obj){
+    try{ recvConn && recvConn.open && recvConn.send(JSON.stringify(obj)); }catch(e){}
+  }
+
+  function finishIncomingFile(doneMsg){
+    if(!recvIncoming) return;
+    const idx = recvIncoming.index;
+    const expectedSize = (doneMsg && typeof doneMsg.size === "number") ? doneMsg.size : recvIncoming.size;
+
+    // Integrity check: every byte must have actually arrived before we call this a success.
+    if(recvIncoming.received !== expectedSize){
+      const row = document.getElementById("rx-"+idx);
+      if(row) row.classList.add("error");
+      const pctEl = document.getElementById("rx-pct-"+idx);
+      if(pctEl) pctEl.textContent = "incomplete (" + fmtSize(recvIncoming.received) + " / " + fmtSize(expectedSize) + ")";
+      sendRecvJSON({ type:"ack-error", index: idx });
+      recvStatus.className = "status-line err";
+      recvStatus.textContent = "Ek file poori tarah nahi aayi — network beech me toota hoga. Dubara try karo.";
+      recvIncoming = null;
+      return;
+    }
+
+    const blob = new Blob(recvIncoming.chunks, { type: recvIncoming.mime || "application/octet-stream" });
+    const url = URL.createObjectURL(blob);
+    recvBlobUrls[idx] = { url, name: recvIncoming.name };
+
+    triggerDownload(url, recvIncoming.name);
+
+    const row = document.getElementById("rx-"+idx);
+    if(row) row.classList.add("done");
+    const pctEl = document.getElementById("rx-pct-"+idx);
+    if(pctEl) pctEl.textContent = "100%";
+    const barEl = document.getElementById("rx-bar-"+idx);
+    if(barEl) barEl.style.width = "100%";
+    const linkEl = document.getElementById("rx-link-"+idx);
+    if(linkEl){
+      linkEl.href = url;
+      linkEl.download = recvIncoming.name;
+      linkEl.style.display = "inline-block";
+    }
+
+    sendRecvJSON({ type:"ack-file", index: idx });
+    recvIncoming = null;
+  }
+
+  function triggerDownload(url, name){
+    const a = document.createElement("a");
+    a.href = url; a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  function resetReceive(){
+    try{ recvConn && recvConn.close(); }catch(e){}
+    try{ recvPeer && recvPeer.destroy(); }catch(e){}
+    recvPeer = null; recvConn = null; recvIncoming = null;
+    Object.values(recvBlobUrls).forEach(b=>{ try{ URL.revokeObjectURL(b.url); }catch(e){} });
+    recvBlobUrls = {};
+    codeInput.value = "";
+    recvSetup.style.display = "block";
+    recvActive.style.display = "none";
+  }
+
+  window.addEventListener("beforeunload", ()=>{
+    try{ sendPeer && sendPeer.destroy(); }catch(e){}
+    try{ recvPeer && recvPeer.destroy(); }catch(e){}
+  });
+
+})();
+</script>
+</body>
+</html>
