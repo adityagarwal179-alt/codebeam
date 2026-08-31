@@ -84,7 +84,6 @@
   .panel{display:none;}
   .panel.active{display:block;}
 
-  /* ---- dropzone ---- */
   .dropzone{
     border:1.5px dashed rgba(255,255,255,0.16);
     border-radius:var(--radius-md);
@@ -137,7 +136,6 @@
   }
   .btn-secondary:hover{border-color:rgba(255,255,255,0.25);}
 
-  /* ---- code / beacon display ---- */
   .beacon-stage{display:flex;flex-direction:column;align-items:center;text-align:center;padding:6px 0 4px;}
   .ring{
     position:relative;width:150px;height:150px;border-radius:50%;
@@ -179,10 +177,6 @@
   .xfer-item.error{border-color:rgba(255,122,122,0.4);}
   .xfer-item.error .bar i{background:var(--danger);width:100% !important;}
   .xfer-item.error .xp{color:var(--danger);}
-  a.redl{
-    display:none;margin-top:8px;font-size:12px;color:var(--accent-2);text-decoration:none;font-weight:600;
-  }
-  a.redl:hover{text-decoration:underline;}
 
   .msg-box{
     margin-top:16px;background:var(--accent-2-dim);border:1px solid rgba(94,234,212,0.25);
@@ -191,7 +185,6 @@
   }
   .msg-box b{display:block;font-size:11px;text-transform:none;color:var(--accent-2);margin-bottom:4px;font-weight:700;}
 
-  /* ---- receive panel ---- */
   .code-input-row{display:flex;gap:10px;}
   input#codeInput{
     flex:1;background:var(--surface-2);border:1px solid var(--border);color:var(--text);
@@ -255,9 +248,8 @@
     <button class="tab-btn" data-tab="receive">Receive karo</button>
   </div>
 
-  <!-- ============ SEND PANEL ============ -->
+  <!-- SEND PANEL -->
   <div class="card panel active" id="panel-send">
-
     <div id="sendSetup">
       <div class="dropzone" id="dropzone">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
@@ -314,14 +306,14 @@
     </div>
   </div>
 
-  <!-- ============ RECEIVE PANEL ============ -->
+  <!-- RECEIVE PANEL -->
   <div class="card panel" id="panel-receive">
     <div id="recvSetup">
       <div class="code-input-row">
         <input type="text" id="codeInput" placeholder="000000" maxlength="6" inputmode="numeric">
         <button class="btn-primary" id="connectBtn" style="width:auto;margin-top:0;padding:0 20px;" disabled>Connect</button>
       </div>
-      <p class="hint">Bhejne wale ki screen par jo 6-digit code dikh raha hai wo yahan daalo. Dono devices ki screen खुली honi chahiye jab tak transfer poora na ho jaaye.</p>
+      <p class="hint">Bhejne wale ki screen par jo 6-digit code dikh raha hai wo yahan daalo. Dono devices ki screen khuli honi chahiye jab tak transfer poora na ho jaaye.</p>
     </div>
 
     <div id="recvActive" style="display:none;">
@@ -334,7 +326,7 @@
 
   <div class="note">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
-    <span>Transfer seedha browser-se-browser (peer-to-peer) hota hai — file kabhi kisi server par save nahi hoti. Isliye sender aur receiver dono ka tab transfer poora hone tak khula rehna zaroori hai. Bahut strict office/college Wi-Fi par kabhi-kabhi direct connection block ho sakta hai — us case me mobile data ya doosre network se try karein. QR code ek free public service (qrserver.com) se banta hai — sirf code/link usme encode hota hai, file kabhi uske through nahi jaati.</span>
+    <span>Transfer seedha browser-se-browser (peer-to-peer) hota hai — file kabhi kisi server par save nahi hoti. Isliye sender aur receiver dono ka tab transfer poora hone tak khula rehna zaroori hai. Bahut strict office/college Wi-Fi par kabhi-kabhi direct connection block ho sakta hai — us case me mobile data ya doosre network se try karein.</span>
   </div>
 
   <footer>Ek baar tab band ya connection cancel karne par code turant bekaar ho jaata hai.</footer>
@@ -344,11 +336,6 @@
 (function(){
   "use strict";
 
-  /* ============================================================
-     PEERJS LIBRARY LOADER — tries several CDNs in turn so a single
-     blocked/slow CDN can't leave the whole app stuck on "Peer is
-     not defined". Buttons stay disabled until this resolves.
-  ============================================================ */
   const PEERJS_CDNS = [
     "https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js",
     "https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js",
@@ -358,6 +345,18 @@
   window.__sendFilesCount = 0;
   const libStatusEl = document.getElementById("libStatus");
   const libStatusText = document.getElementById("libStatusText");
+
+  // Robust STUN configuration setup to allow seamless NAT traversal between phone & laptop
+  const peerOptions = {
+    debug: 0,
+    config: {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' }
+      ]
+    }
+  };
 
   function loadPeerJs(i){
     if(i >= PEERJS_CDNS.length){
@@ -394,21 +393,12 @@
     return false;
   }
 
-  /* ============================================================
-     STATE
-  ============================================================ */
-  const CHUNK_SIZE = 16 * 1024;      // 16KB per chunk (safe across all browsers incl. older Safari)
-  const BUFFER_HIGH = 4 * 1024 * 1024; // pause sending above 4MB buffered
-  let recvBlobUrls = {}; // index -> {url, name} kept alive for "download again"
-
-  let sendPeer = null, sendConn = null, sendFiles = [], sendMsgText = "";
+  const CHUNK_SIZE = 16 * 1024; 
+  let sendFiles = [], sendMsgText = "";
   let expiryTimerId = null, expiryDeadline = null;
+  let sendPeer = null, sendConn = null;
   let recvPeer = null, recvConn = null;
-  let recvIncoming = null; // {meta, chunks:[], received}
 
-  /* ============================================================
-     TAB SWITCHING
-  ============================================================ */
   document.querySelectorAll(".tab-btn").forEach(btn=>{
     btn.addEventListener("click", ()=>{
       document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
@@ -418,9 +408,6 @@
     });
   });
 
-  /* ============================================================
-     HELPERS
-  ============================================================ */
   function fmtSize(bytes){
     if(bytes < 1024) return bytes+" B";
     if(bytes < 1024*1024) return (bytes/1024).toFixed(1)+" KB";
@@ -438,9 +425,6 @@
     return m+":"+String(r).padStart(2,"0");
   }
 
-  /* ============================================================
-     SEND — file picking
-  ============================================================ */
   const dropzone = document.getElementById("dropzone");
   const fileInput = document.getElementById("fileInput");
   const fileListEl = document.getElementById("fileList");
@@ -480,9 +464,6 @@
     return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   }
 
-  /* ============================================================
-     SEND — start sharing (create peer with code as ID)
-  ============================================================ */
   const sendSetup = document.getElementById("sendSetup");
   const sendActive = document.getElementById("sendActive");
   const sendCodeEl = document.getElementById("sendCode");
@@ -514,20 +495,11 @@
   });
 
   function updateQr(code){
-    // On a hosted (http/https) page, the QR encodes a link with ?code=
-    // so the receiving phone's camera app can jump straight to the
-    // receive tab, pre-filled. Opened as a local file:// page there is
-    // no shareable URL, so it just encodes the raw code as a fallback.
     const isHosted = /^https?:$/.test(location.protocol);
-    const payload = isHosted
-      ? location.origin + location.pathname + "?code=" + code
-      : code;
-    document.getElementById("qrImg").src =
-      "https://api.qrserver.com/v1/create-qr-code/?size=150x150&margin=4&data=" + encodeURIComponent(payload);
+    const payload = isHosted ? location.origin + location.pathname + "?code=" + code : code;
+    document.getElementById("qrImg").src = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&margin=4&data=" + encodeURIComponent(payload);
   }
 
-  // If this page was opened via a ?code=XXXXXX link (e.g. from a scanned
-  // QR), jump straight to the Receive tab with the code pre-filled.
   (function checkIncomingCodeLink(){
     const params = new URLSearchParams(location.search);
     const c = params.get("code");
@@ -556,7 +528,7 @@
     }
     const code = randomCode();
     try{ if(sendPeer) sendPeer.destroy(); }catch(e){}
-    sendPeer = new Peer(code, { debug: 0 });
+    sendPeer = new Peer(code, peerOptions);
 
     sendPeer.on("open", id=>{
       sendCodeEl.textContent = id;
@@ -567,7 +539,7 @@
     });
 
     sendPeer.on("connection", conn=>{
-      if(sendConn){ conn.close(); return; } // only one receiver at a time
+      if(sendConn){ conn.close(); return; }
       sendConn = conn;
       clearExpiryTimer();
       sendRing.classList.add("connected");
@@ -584,21 +556,14 @@
           sendStatus.textContent = "Receiver disconnect ho gaya.";
         }
       });
-      sendConn.on("error", ()=>{
-        sendStatus.className = "status-line err";
-        sendStatus.textContent = "Connection me error aayi.";
-      });
     });
 
     sendPeer.on("error", err=>{
       if(err.type === "unavailable-id"){
         createSendPeer(attempt+1);
-      } else if (err.type === "network" || err.type === "server-error" || err.type === "socket-error" || err.type === "socket-closed"){
+      } else {
         sendStatus.className = "status-line err";
-        sendStatus.textContent = "Network/signal server problem — dubara try karo.";
-      } else if (!sendConn){
-        sendStatus.className = "status-line err";
-        sendStatus.textContent = "Kuch galat ho gaya: " + err.type;
+        sendStatus.textContent = "Network error: " + err.type;
       }
     });
   }
@@ -632,7 +597,6 @@
   }
 
   let allDone = false;
-
   function resetSend(){
     clearExpiryTimer();
     allDone = false;
@@ -650,9 +614,6 @@
     qrToggleBtn.textContent = "QR code dikhao";
   }
 
-  /* ============================================================
-     SEND — chunked file transfer with backpressure + progress
-  ============================================================ */
   function beginFileTransfer(){
     const xferList = document.getElementById("sendXferList");
     xferList.innerHTML = "";
@@ -663,29 +624,6 @@
       item.innerHTML = `<div class="xhead"><span class="xn">${escapeHtml(f.name)}</span><span class="xp" id="sx-pct-${idx}">0%</span></div><div class="bar"><i id="sx-bar-${idx}"></i></div>`;
       xferList.appendChild(item);
     });
-
-    sendConn.on("data", data=>{
-      if(typeof data !== "string") return;
-      let msg;
-      try{ msg = JSON.parse(data); }catch(e){ return; }
-      if(msg.type === "ack-file"){
-        const item = document.getElementById("sx-"+msg.index);
-        if(item){
-          const pctEl = document.getElementById("sx-pct-"+msg.index);
-          if(pctEl) pctEl.textContent = "✓ confirmed";
-        }
-      } else if(msg.type === "ack-error"){
-        const item = document.getElementById("sx-"+msg.index);
-        if(item){
-          item.classList.add("error");
-          const pctEl = document.getElementById("sx-pct-"+msg.index);
-          if(pctEl) pctEl.textContent = "mismatch!";
-        }
-        sendStatus.className = "status-line err";
-        sendStatus.textContent = "Ek file receiver tak poori nahi pahunchi. Dubara try karo.";
-      }
-    });
-
     sendFilesSequentially(0);
   }
 
@@ -714,251 +652,149 @@
 
   function sendOneFile(file, idx, onDone){
     let offset = 0;
-    const dc = sendConn.dataChannel;
     const pctEl = document.getElementById("sx-pct-"+idx);
     const barEl = document.getElementById("sx-bar-"+idx);
 
-    function sendNextChunk(){
-      if(!sendConn || !sendConn.open){
-        sendStatus.className = "status-line err"; sendStatus.textContent = "Connection toot gaya."; return;
-      }
-      if(dc && dc.bufferedAmount > BUFFER_HIGH){
-        setTimeout(sendNextChunk, 60);
-        return;
-      }
+    function readNextChunk(){
       if(offset >= file.size){
-        sendJSON({ type:"file-done", index: idx, size: file.size });
-        pctEl.textContent = "verifying…";
-        barEl.style.width = "100%";
         onDone();
         return;
       }
-      const slice = file.slice(offset, offset+CHUNK_SIZE);
+      const slice = file.slice(offset, offset + CHUNK_SIZE);
       const reader = new FileReader();
-      reader.onerror = ()=>{
-        sendStatus.className = "status-line err";
-        sendStatus.textContent = "File read karte waqt error aayi: " + file.name;
-      };
-      reader.onload = ()=>{
-        try{
-          sendConn.send(reader.result); // raw ArrayBuffer chunk (serialization: "none")
-        }catch(e){
-          setTimeout(sendNextChunk, 150);
-          return;
-        }
-        offset += slice.size;
-        const pct = Math.min(100, Math.round((offset/file.size)*100));
-        pctEl.textContent = pct+"%";
-        barEl.style.width = pct+"%";
-        sendNextChunk();
+      reader.onload = e=>{
+        if(!sendConn || !sendConn.open) return;
+        sendConn.send(e.target.result);
+        offset += CHUNK_SIZE;
+        const pct = Math.min(100, Math.floor((offset / file.size) * 100));
+        pctEl.textContent = pct + "%";
+        barEl.style.width = pct + "%";
+        setTimeout(readNextChunk, 4); // Prevents thread blocking
       };
       reader.readAsArrayBuffer(slice);
     }
-    sendNextChunk();
+    readNextChunk();
   }
 
-  /* ============================================================
-     RECEIVE — connect using code
-  ============================================================ */
+  // RECEIVE LOGIC
   const codeInput = document.getElementById("codeInput");
   const connectBtn = document.getElementById("connectBtn");
   const recvSetup = document.getElementById("recvSetup");
   const recvActive = document.getElementById("recvActive");
   const recvStatus = document.getElementById("recvStatus");
-  const recvXferList = document.getElementById("recvXferList");
-  const recvMsgBox = document.getElementById("recvMsgBox");
-  const recvMsgText = document.getElementById("recvMsgText");
+  let recvIncoming = null;
 
   codeInput.addEventListener("input", ()=>{
-    codeInput.value = codeInput.value.replace(/\D/g,"").slice(0,6);
+    const val = codeInput.value.replace(/\D/g, "").slice(0, 6);
+    codeInput.value = val;
+    connectBtn.disabled = val.length !== 6 || !window.__peerJsReady;
   });
-  codeInput.addEventListener("keydown", e=>{ if(e.key==="Enter") connectBtn.click(); });
-  connectBtn.addEventListener("click", ()=>{
-    if(!window.__peerJsReady || typeof Peer === "undefined"){
-      recvStatus.className = "status-line err";
-      recvStatus.textContent = "Connection library abhi taiyaar nahi hai. Thoda ruko ya page reload karo.";
-      return;
-    }
-    const code = codeInput.value.trim();
-    if(!/^\d{6}$/.test(code)){
-      codeInput.focus();
-      return;
-    }
-    startReceiving(code);
-  });
-  document.getElementById("recvResetBtn").addEventListener("click", resetReceive);
 
-  function startReceiving(code){
+  connectBtn.addEventListener("click", ()=>{
+    const code = codeInput.value.trim();
+    if(code.length !== 6) return;
+    if(!requirePeerJsOrWarn(recvStatus)) return;
+
     recvSetup.style.display = "none";
     recvActive.style.display = "block";
     recvStatus.className = "status-line";
-    recvStatus.textContent = "Connect ho raha hai…";
-    recvXferList.innerHTML = "";
-    recvMsgBox.style.display = "none";
+    recvStatus.textContent = "Connecting...";
 
     try{ if(recvPeer) recvPeer.destroy(); }catch(e){}
-    recvPeer = new Peer(undefined, { debug: 0 });
+    recvPeer = new Peer(peerOptions);
 
     recvPeer.on("open", ()=>{
-      // serialization "none" = raw ArrayBuffers pass through untouched (no BinaryPack
-      // re-typing, which was silently turning chunks into unrecognised objects).
-      recvConn = recvPeer.connect(code, { reliable: true, serialization: "none" });
-      wireReceiveConn();
+      recvConn = recvPeer.connect(code, { reliable: true });
+      setupReceiverConnection();
     });
+
     recvPeer.on("error", err=>{
       recvStatus.className = "status-line err";
-      if(err.type === "peer-unavailable"){
-        recvStatus.textContent = "Ye code exist nahi karta ya expire ho gaya.";
-      } else {
-        recvStatus.textContent = "Connection error: " + err.type;
-      }
+      recvStatus.textContent = "Connection fail ho gaya: " + err.type;
     });
-  }
+  });
 
-  function wireReceiveConn(){
-    let connectTimeout = setTimeout(()=>{
-      if(recvStatus.textContent.indexOf("Connect ho") === 0){
-        recvStatus.className = "status-line err";
-        recvStatus.textContent = "Connect nahi ho paaya. Code check karke dubara try karo.";
-      }
-    }, 12000);
-
+  function setupReceiverConnection(){
     recvConn.on("open", ()=>{
-      clearTimeout(connectTimeout);
       recvStatus.className = "status-line ok";
-      recvStatus.textContent = "Connected — file(s) ka intezaar…";
+      recvStatus.textContent = "Connected! Files receive ho rahi hain...";
     });
 
     recvConn.on("data", data=>{
-      // Binary chunk: covers ArrayBuffer and any typed-array/DataView the browser
-      // or PeerJS's internal chunker might hand back for a raw binary message.
-      if(data instanceof ArrayBuffer || ArrayBuffer.isView(data)){
-        handleIncomingChunk(data);
-        return;
-      }
-      // Some engines may hand back a Blob for binary messages — support it too.
-      if(typeof Blob !== "undefined" && data instanceof Blob){
-        data.arrayBuffer().then(handleIncomingChunk);
-        return;
-      }
-      if(typeof data !== "string") return;
-      let msg;
-      try{ msg = JSON.parse(data); }catch(e){ return; }
-      switch(msg.type){
-        case "meta":
-          recvIncoming = { index:msg.index, name:msg.name, size:msg.size, mime:msg.mime, chunks:[], received:0 };
-          ensureXferRow(msg.index, msg.name);
-          break;
-        case "file-done":
-          finishIncomingFile(msg);
-          break;
-        case "message":
-          recvMsgText.textContent = msg.text;
-          recvMsgBox.style.display = "block";
-          break;
-        case "all-done":
+      if(typeof data === "string"){
+        let msg;
+        try{ msg = JSON.parse(data); }catch(e){ return; }
+        if(msg.type === "message"){
+          document.getElementById("recvMsgText").textContent = msg.text;
+          document.getElementById("recvMsgBox").style.display = "block";
+        } else if(msg.type === "meta"){
+          recvIncoming = { meta: msg, chunks: [], receivedSize: 0 };
+          addRecvItem(msg);
+        } else if(msg.type === "all-done"){
           recvStatus.className = "status-line ok";
-          recvStatus.textContent = "Sab files receive ho gayi ✓";
-          break;
+          recvStatus.textContent = "Sabhi files successfully download ho gayi hain! ✓";
+        }
+      } else {
+        // Binary chunk received
+        if(!recvIncoming) return;
+        recvIncoming.chunks.push(data);
+        recvIncoming.receivedSize += data.byteLength;
+        const idx = recvIncoming.meta.index;
+        const total = recvIncoming.meta.size;
+        const pct = Math.min(100, Math.floor((recvIncoming.receivedSize / total) * 100));
+        
+        const pctEl = document.getElementById("rx-pct-"+idx);
+        const barEl = document.getElementById("rx-bar-"+idx);
+        if(pctEl) pctEl.textContent = pct + "%";
+        if(barEl) barEl.style.width = pct + "%";
+
+        if(recvIncoming.receivedSize >= total){
+          const blob = new Blob(recvIncoming.chunks, { type: recvIncoming.meta.mime });
+          const url = URL.createObjectURL(blob);
+          const item = document.getElementById("rx-"+idx);
+          if(item){
+            item.classList.add("done");
+            const a = item.querySelector("a.redl");
+            if(a){
+              a.href = url;
+              a.download = recvIncoming.meta.name;
+              a.style.display = "inline-block";
+              a.textContent = "Download File (" + fmtSize(total) + ")";
+            }
+          }
+        }
       }
     });
 
     recvConn.on("close", ()=>{
-      clearTimeout(connectTimeout);
-    });
-    recvConn.on("error", ()=>{
       recvStatus.className = "status-line err";
-      recvStatus.textContent = "Connection me error aayi.";
+      recvStatus.textContent = "Sender se connection toot gaya.";
     });
   }
 
-  function ensureXferRow(idx, name){
-    if(document.getElementById("rx-"+idx)) return;
+  function addRecvItem(meta){
+    const xferList = document.getElementById("recvXferList");
     const item = document.createElement("div");
     item.className = "xfer-item";
-    item.id = "rx-"+idx;
-    item.innerHTML = `<div class="xhead"><span class="xn">${escapeHtml(name)}</span><span class="xp" id="rx-pct-${idx}">0%</span></div><div class="bar"><i id="rx-bar-${idx}"></i></div><a class="redl" id="rx-link-${idx}" style="display:none;">Dubara download karo</a>`;
-    recvXferList.appendChild(item);
+    item.id = "rx-"+meta.index;
+    item.innerHTML = `
+      <div class="xhead"><span class="xn">${escapeHtml(meta.name)}</span><span class="xp" id="rx-pct-${meta.index}">0%</span></div>
+      <div class="bar"><i id="rx-bar-${meta.index}"></i></div>
+      <a class="redl" target="_blank">Download File</a>
+    `;
+    xferList.appendChild(item);
   }
 
-  function handleIncomingChunk(buf){
-    if(!recvIncoming) return; // stray chunk with no active meta — ignore safely
-    recvIncoming.chunks.push(buf);
-    recvIncoming.received += buf.byteLength;
-    const pct = recvIncoming.size ? Math.min(100, Math.round((recvIncoming.received/recvIncoming.size)*100)) : 0;
-    const pctEl = document.getElementById("rx-pct-"+recvIncoming.index);
-    const barEl = document.getElementById("rx-bar-"+recvIncoming.index);
-    if(pctEl) pctEl.textContent = pct+"%";
-    if(barEl) barEl.style.width = pct+"%";
-  }
-
-  function sendRecvJSON(obj){
-    try{ recvConn && recvConn.open && recvConn.send(JSON.stringify(obj)); }catch(e){}
-  }
-
-  function finishIncomingFile(doneMsg){
-    if(!recvIncoming) return;
-    const idx = recvIncoming.index;
-    const expectedSize = (doneMsg && typeof doneMsg.size === "number") ? doneMsg.size : recvIncoming.size;
-
-    // Integrity check: every byte must have actually arrived before we call this a success.
-    if(recvIncoming.received !== expectedSize){
-      const row = document.getElementById("rx-"+idx);
-      if(row) row.classList.add("error");
-      const pctEl = document.getElementById("rx-pct-"+idx);
-      if(pctEl) pctEl.textContent = "incomplete (" + fmtSize(recvIncoming.received) + " / " + fmtSize(expectedSize) + ")";
-      sendRecvJSON({ type:"ack-error", index: idx });
-      recvStatus.className = "status-line err";
-      recvStatus.textContent = "Ek file poori tarah nahi aayi — network beech me toota hoga. Dubara try karo.";
-      recvIncoming = null;
-      return;
-    }
-
-    const blob = new Blob(recvIncoming.chunks, { type: recvIncoming.mime || "application/octet-stream" });
-    const url = URL.createObjectURL(blob);
-    recvBlobUrls[idx] = { url, name: recvIncoming.name };
-
-    triggerDownload(url, recvIncoming.name);
-
-    const row = document.getElementById("rx-"+idx);
-    if(row) row.classList.add("done");
-    const pctEl = document.getElementById("rx-pct-"+idx);
-    if(pctEl) pctEl.textContent = "100%";
-    const barEl = document.getElementById("rx-bar-"+idx);
-    if(barEl) barEl.style.width = "100%";
-    const linkEl = document.getElementById("rx-link-"+idx);
-    if(linkEl){
-      linkEl.href = url;
-      linkEl.download = recvIncoming.name;
-      linkEl.style.display = "inline-block";
-    }
-
-    sendRecvJSON({ type:"ack-file", index: idx });
-    recvIncoming = null;
-  }
-
-  function triggerDownload(url, name){
-    const a = document.createElement("a");
-    a.href = url; a.download = name;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  }
-
-  function resetReceive(){
+  document.getElementById("recvResetBtn").addEventListener("click", ()=>{
     try{ recvConn && recvConn.close(); }catch(e){}
     try{ recvPeer && recvPeer.destroy(); }catch(e){}
-    recvPeer = null; recvConn = null; recvIncoming = null;
-    Object.values(recvBlobUrls).forEach(b=>{ try{ URL.revokeObjectURL(b.url); }catch(e){} });
-    recvBlobUrls = {};
+    recvPeer = null; recvConn = null;
     codeInput.value = "";
+    connectBtn.disabled = true;
+    document.getElementById("recvXferList").innerHTML = "";
+    document.getElementById("recvMsgBox").style.display = "none";
     recvSetup.style.display = "block";
     recvActive.style.display = "none";
-  }
-
-  window.addEventListener("beforeunload", ()=>{
-    try{ sendPeer && sendPeer.destroy(); }catch(e){}
-    try{ recvPeer && recvPeer.destroy(); }catch(e){}
   });
 
 })();
